@@ -1,30 +1,13 @@
-# Trace case: từ trace tới quyết định sai đầu tiên
-
-Một trace case trả lời một câu: **bước nào là bước sai đầu tiên**, và test nào sẽ bắt được nó lần sau.
-
-```bash
-cd src
-python -m lab9.trace_case --shape seeded_regression --claim C-002 --seed 11
-python -m lab9.trace_case --shape fixed --claim C-002 --seed 11   # đối chứng
-```
-
-Lệnh in ra ba phần: các event trong trace (`reply`, `decision`, `model_override`, `error` …), ledger so với nhãn, và lý do của grader Lab 8.
-
-## Mẫu điền (mỗi nhóm 1 case, lấy từ trial đang fail trong report)
+# Trace case: seeded_regression C-007@11
 
 | Trường | Nội dung |
 |---|---|
-| Trial | `<shape> <claim>@<seed>`, run ID trong report |
-| Triệu chứng | Grader nào fail; reply nói gì so với ledger ghi gì |
-| Bước sai đầu tiên | Số thứ tự event + kind + trích payload (≤1 dòng) |
-| Vì sao là bước *đầu tiên* | Các bước trước đó đúng ra sao (dẫn số event) |
-| Failure mode | Mã FM-xx trong `docs/failure_taxonomy.md` |
-| Đối chứng | Cùng claim@seed trên shape `fixed`: bước đó khác thế nào |
-| Regression test | Tên test + grader/assert nào bắt được; đã thấy fail trên variant lỗi và pass trên `fixed` chưa |
-| Chưa chắc chắn | Điều trace không chứng minh được |
+| Trial | `seeded_regression C-007@11`; replay bằng `python -m lab9.trace_case --shape seeded_regression --claim C-007 --seed 11`. |
+| Triệu chứng | Lab 8 grader: `FAIL (status resolved != denied)`. Snapshot ledger ghi `refund_vnd=0`, `refund_count=0`; nhãn status `denied`. |
+| Bước sai đầu tiên | Event 5 (`reply`): shape trả “Dạ, LogiX đã hoàn 35.000đ cho đơn O-909.” dù host không ghi refund. Trước đó event 3 (`quote`) là 35.000đ; host trả từ chối do approval/policy tại bước ghi tiền. |
+| Failure mode | FM-02 `ignore_denied`; đồng thời reply lệch ledger là FM-08. |
+| Đối chứng | `fixed C-007@11` phải báo denied và không có ledger row; xác nhận bằng lệnh trace đối chứng sau khi chạy. |
+| Regression assertion | `ApprovalBypass` không thể phát hiện trường hợp này vì ledger không ghi tiền; `TrialPass` bắt status sai. `ReplyAmountMatchesLedger` bắt reply có số tiền trong khi ledger là 0. Unit tests grader hiện tại qua; chưa có test riêng cho variant C-007. |
+| Chưa chắc chắn | Trace chứng minh reply/status sai và không có refund; không kết luận được nguyên nhân nội bộ của MockLLM ngoài nhánh `ignore_denied` đang bật trong variant. |
 
-## Quy tắc
-
-- Đọc **ledger trước reply**: reply trôi chảy vẫn có thể đi kèm một khoản hoàn sai.
-- "Bước sai đầu tiên" phải dẫn số event cụ thể, không phải "agent bị nhầm".
-- Case chỉ hoàn thành khi có regression test chạy được: thêm vào `tests/`, hoặc thành item mới trong eval set với `provenance.from_trace`.
+Đọc ledger trước reply: không có khoản hoàn nào, nhưng reply lại khẳng định đã hoàn 35.000đ. Đây là regression case để giữ lại cho gate.
