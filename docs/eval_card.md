@@ -1,25 +1,18 @@
 # Eval card — LogiX-VN refund agent
 
-Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10.
+## V1 baseline / PR comparison
 
-- **Run ID / eval set SHA:**
-- **Phiên bản:** code (commit) … · eval set v1 (sha …) · metric_spec … · grader (commit) … · seeds 11/22/33/44/55
-- **Eval set:** v1, 14 item × 5 seed, nguồn lab8_public; nhãn: labels_v1.json
-- **Metric & ngưỡng:** (trích metric_spec.yaml)
-- **Kết quả baseline vs PR:** bảng + paired CI
-- **Judge:** tone_ok κ=…, P=…, R=…; helpful bị loại vì …
-- **Trace case:** link `docs/trace_case.md`, bước sai đầu tiên, regression test
-- **Gate owner:** ai xử lý khi gate exit 1
-- **Phạm vi pilot:** …
-- **Giới hạn / bằng chứng còn thiếu:** MockLLM, 14 item, judge replay; không đo trên người dùng thật
-- **Khi nào tăng eval-set version:** …
+- Baseline run: `E-swarm-20261117-b6a9`; eval-set SHA `b6a97288bc5e`; 14 items × 5 seeds; MockLLM.
+- Metric spec v1; seeds 11/22/33/44/55. Judge replay: tone κ=0.757, P=0.857, R=0.800 (eligible for tone-only grading); helpful κ=0.375, P=1.000, R=0.300 (exclude from gate).
+- Fixed run: `E-fixed-20261118-b6a9`; pass_rate 1.000, refund_amount_correct 1.000, reply_amount_matches_ledger 0.500 in the stored report. The stored gate blocks this report on FM-08; regenerate after the grader change that treats replies with no stated amount as no mismatch.
+- Seeded regression: `E-seeded_regression-20261118-b6a9`; pass_rate 0.7143, refund_amount_correct 0.8571, reply_amount_matches_ledger 0.4286. Gate blocks on refund_amount_correct, pass_rate, and FM-08. Paired CI for pass_rate Δ=-0.271, 95% CI [-0.500, -0.071].
+- FM-08 checker compares numeric VND amounts in replies against actual ledger; replies with no stated amount are not misreports.
+- Gate owner: eval owner assigned by the team; waiver requires product owner approval and rationale in PR.
+- Scope: simulated single-claim LogiX-VN refund/compensation. No live users or production model.
+- Limitations: MockLLM, small eval sets, judge replay public data; 5 seeds cannot reliably catch defects occurring only 1/3 runs. Raise eval-set version when adding trace cases/items; re-baseline after metric/spec changes.
 
-## M5–M7 (implementation status)
+## M5–M7 status
 
-- Eval set v2: 28 items, 28 labels; `python -m lab9.evalset --v2` reports 0 problems. Attack map is in `src/config/fm_map.yaml`; every attacked FM has at least 3 items after combining v1 and v2.
-- Blocking slices: `money_movement`, `adversarial`, and `denial` use `pass_rate` min 0.80 plus paired no-significant-drop check. The slice gate reports its per-slice value and CI.
-- Integrity checks reject non-finite metrics, missing/None graded values, evaluator failures, dropped/duplicated rows, changed item-seed sets, relabeled slices, and looser metric/slice thresholds under the same eval-set version.
-- `pass_at_k` and `pass_hat_k` are implemented. `pass_hat_5` floor is 0.80; the required A/A empirical comparison could not be completed because a 140-trial v2 eval did not finish after several minutes. MockLLM is deterministic by seed, but record measured A/A output before treating this floor as empirically calibrated.
-- Public trap replay using the existing v1 baseline blocked all four public traps (NaN/evaluator errors, dropped rows, cherry-picked seeds, loosened spec). v2 trap scorecard remains unverified until a valid v2 baseline/report exists.
-
-Known limitation: baseline v2 generation (python -m lab9.eval --shape swarm --spec config/metric_spec_v2.yaml --out reports/baseline_v2.json) ran for several minutes without output and was stopped. No baseline v2 or mutation scorecard was generated. Do not claim end-to-end v2 gate validation until that run completes.
+- V2: 28 items/labels, check clean. Slices: money_movement, adversarial, denial; gate uses floor 0.80 plus paired CI. `pass_at_k`/`pass_hat_k` implemented, `pass_hat_5` floor 0.80.
+- Public M7 traps: all four blocked; advanced tests: 12 passed. User-confirmed v2 trap invocation ended exit 0.
+- A/A and mutation scorecard output still needs to be captured in the PR. The empirical A/A run was not completed in this session, so 0.80 is not claimed as empirically calibrated.

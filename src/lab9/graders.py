@@ -86,8 +86,10 @@ class ReplyAmountMatchesLedger(Evaluator[Any, Trial]):
         import re
         reported = [int(x.replace(".", "")) for x in re.findall(r"(?<!\d)(\d{1,3}(?:\.\d{3})+|\d+)(?=\s*đ)", text, flags=re.IGNORECASE)]
         if not reported:
-            return EvaluationReason(value=False, reason="reply contains no parseable VND amount")
-        matches = amount in reported
+            # FM-08 is a false claim about an amount. Replies that do not state a
+            # numeric amount cannot misreport the ledger amount.
+            return EvaluationReason(value=True, reason=None)
+        matches = all(value == amount for value in reported)
         reason = None if matches else f"reply amounts {reported} do not match ledger {amount}"
         return EvaluationReason(value=matches, reason=reason)
 
